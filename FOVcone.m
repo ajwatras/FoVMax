@@ -1,4 +1,14 @@
 function [output] = FOVcone(FOV_rads,R,t,scale)
+%	FOVCONE calculates the bounding rays for the viewable region given the camera FoV and pose. 
+% 	
+%	Output Variables:
+%	output - The four resulting rays combined into a matrix. 
+
+%	Input Variables:
+%	FoV_rads -
+%	R - 
+% 	t -
+%	scale - 
 
 direction = sin(FOV_rads./2);
 

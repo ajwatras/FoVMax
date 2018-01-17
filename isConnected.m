@@ -1,4 +1,8 @@
 function flag = isConnected(A)
+%	ISCONNECTED returns whether the adjacency matrix A represents
+%	a fully connected graph or not. 
+
+
 %A should be a square adjacency matrix. 
 [m,n] = size(A);
 if (m ~= n)
