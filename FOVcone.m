@@ -5,10 +5,10 @@ function [output] = FOVcone(FOV_rads,R,t,scale)
 %	output - The four resulting rays combined into a matrix. 
 
 %	Input Variables:
-%	FoV_rads -
-%	R - 
-% 	t -
-%	scale - 
+%	FoV_rads - A 1x2 array giving the maximum angle visible from the cameras along the x axis or y axis.
+%	R - A 3x3 camera rotation matrix
+% 	t - A 3x1 camera translation vector
+%	scale - A parameter used to change the length of each of the rays. 
 
 direction = sin(FOV_rads./2);
 

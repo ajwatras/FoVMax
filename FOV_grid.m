@@ -1,6 +1,14 @@
+%% Comprehensive Optimization Comparison - Grid
+% This script combines all the methods for optimizing a camera array for comparison.
+% It optimizes the grid shaped array using the naive, symmetric, greedy, 
+% and exhaustive approaches.
+
+% Set up workspace
 clear all
 close all
 
+
+% Tunable Parameters
 % Current settings should take approx 5 hours.
 FOV_degrees = [54.14,41.67];
 FOV_rads = pi/180*FOV_degrees;

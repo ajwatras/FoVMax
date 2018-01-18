@@ -3,7 +3,7 @@ function [corners] = FOVproject(FOV_rads,plane_of_stitching,camera_R,camera_t)
 %	stitching and returns the resulting polygon vertices.
 %
 %	Output Variables:
-%	corners -
+%	corners - The vertices of the resulting quadrilateral.
 %
 %	Input Variables:
 % 	FOV_rads -  A 1x2 array giving the maximum angle visible from the cameras along the x axis or y axis.

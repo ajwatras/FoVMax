@@ -1,6 +1,14 @@
+%% Symmetric optimization
+% This script will attempt to optimize camera placement for a set of cameras
+% placed on a cross shaped trocar camera array. This approach requires that 
+% each camera be placed on an identically shaped arm of the array, thus there 
+% will only be one angle and one translation associated with the array. 
+
+% Set up workspace
 clear all
 close all
 
+% Tunable Parameters
 FOV_degrees = [54.14,41.67];
 plane_of_stitching = [0,0,1,0]';
 R_bounds = [-pi/3,1,pi/3];

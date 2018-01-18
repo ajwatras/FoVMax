@@ -2,20 +2,22 @@ function [camera_pose,covered_poly,camera_views] = greedyBox(FOV_rads,plane_of_s
 %   GREEDYBOX calculates the optimal camera pose for a camera to be added to a grid shaped camera array. 
 %
 %   Output Variables:
-%   camera_pose -
-%   covered_poly -
-%   camera_views -
+%   camera_pose - The set of camera parameters that define the best camera
+%   covered_poly - The total field of view of the camera with 
+%   camera_views - The set of polygons denoting the coverage region for each camera in the array, including the new one. 
 %
 %   Input Variables:
 %   FOV_rads -  A 1x2 array giving the maximum angle visible from the cameras along the x axis or y axis.
 %   plane_of_stitching - The coefficients defining the plane where the scene lies. This should be in the format 
 %   [A,B,C,D] where A,B,C, and D fulfill the plane equation Ax + By + Cz + D = 0.
 %   coverage_reg -
-%   covered_poly - 
-%   T_bounds - 
-%   R_bounds - 
-%   scene_depth - 
-%   camera_pose -
+%   covered_poly - The polygon detailing what region the camera array can currently see. The union of all previous camera FoV 
+%   T_bounds - T_bounds[1] holds the minimum value of the x and y coordinates for translation of the cameras, T_bounds[2] holds the increment size for the 
+%   discrete camera placement, and T_bounds[3] holds the maximum value.  
+%   R_bounds - R_bounds[1] holds the minimum angle of rotation for the camera along both x and y axes, R_bounds[2] holds the increment size for the 
+%   discrete camera placement, and R_bounds[3] holds the maximum angle of rotation. 
+%   scene_depth - A scalar denoting the distance from the camera array to the scene along the axis perpendicular to the spread of the array. 
+%   camera_pose - The set of camera poses for cameras already placed in the array. 
 
 %R_bounds = [-pi/3,.05,pi/3];
 %T_bounds = [2,.05,7.5];

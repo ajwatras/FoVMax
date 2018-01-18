@@ -1,6 +1,12 @@
+%% Evaluation of single array set up
+% This script finds the array area for a given camera array set up.
+% It returns the area and displays the resulting FoV.
+
+% Set up workspace
 clear all
 close all
 
+%Tunable Parameters
 FOV_degrees = [54.14,41.67];
 plane_of_stitching = [0,0,1,0]';
 R_bounds = [-pi/3,1,pi/3];

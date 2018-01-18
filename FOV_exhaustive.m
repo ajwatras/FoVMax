@@ -1,6 +1,12 @@
+%% Exhaustive Optimization
+% This script runs an exhaustive optimization over all possible camera placements for the 
+% cross shaped trocar array. 
+
+% Set up the workspace
 clear all
 close all
 
+% Tunable Parameters
 FOV_degrees = [54.14,41.67];
 plane_of_stitching = [0,0,1,0]';
 R_bounds = [-pi/3,1,pi/3];
@@ -8,8 +14,10 @@ Rz_bounds = [-pi/2,pi/2,pi];
 T_bounds = [2,5,7.5];
 scene_depth = 16.5;
 
+
 FOV_rads = pi/180*FOV_degrees;
 
+% Optimization
 num_cameras = 5;
 cc = 0;
 for Rz = Rz_bounds(1):Rz_bounds(2):Rz_bounds(3)

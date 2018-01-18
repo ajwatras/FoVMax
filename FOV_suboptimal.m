@@ -1,6 +1,13 @@
+%% Greedy Optimization
+% This script offers a suboptimal approach to the FoV optimization problem. 
+% Given a cross shaped trocar camera array, this script will efficiently try 
+% to find a good set up for those cameras.
+
+% Set up the workspace
 clear all
 close all
 
+% Tunable Parameters
 FOV_degrees = [54.14,41.67];
 FOV_rads = pi/180*FOV_degrees;
 plane_of_stitching = [0,0,1,0]';
@@ -10,6 +17,7 @@ thresh = 25;
 Rz_bounds = [-pi/2,pi/2,pi];
 R_bounds = [-pi/3,pi/6,pi/3];
 T_bounds = [2.5,2.75,7.5];
+
 
 %% Greedy Approach
 

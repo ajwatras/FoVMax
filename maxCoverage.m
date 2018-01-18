@@ -18,6 +18,7 @@ function [camera_pose,covered_poly,camera_views] = maxCoverage(FOV_rads,plane_of
 %   discrete camera placement, and R_bounds[3] holds the maximum angle of rotation. 
 %   scene_depth - A scalar denoting the distance from the camera array to the scene along the axis perpendicular to the spread of the array. 
 %   camera_pose - The set of camera poses for cameras already placed in the array. 
+
 %T_bounds = [2,.05,7.5];
 %scene_depth = 16.5;
 %thresh = 100;
