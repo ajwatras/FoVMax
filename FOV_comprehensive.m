@@ -1,12 +1,12 @@
 %% Comprehensive Optimization Comparison - Trocar
 % This script combines all the methods for optimizing a camera array for comparison.
-% It optimizes the cross shaped trocar array using the naive, symmetric, greedy, 
+% It optimizes the cross shaped trocar array using the naive, symmetric, greedy,
 % and exhaustive approaches.
 
 % Set up workspace
 clear all
 close all
-
+load post.mat
 
 % Tunable Parameters
 % Current settings should take approx 5 hours.
@@ -22,8 +22,8 @@ R_bounds = [-pi/3,pi/6,pi/3];
 T_bounds = [2.5,5,7.5];
 
 %Slow, Approx 3 Days
-%R_bounds = [-pi/3,pi/6,pi/3];
-%T_bounds = [2,2.75,7.5];
+R_bounds = [-pi/3,pi/6,pi/3];
+T_bounds = [2,1,7.5];
 
 %Medium, Approx 1 Days
 %R_bounds = [-pi/3,pi/6,pi/3];
@@ -86,9 +86,14 @@ for t = T_bounds(1):T_bounds(2):T_bounds(3)
     camera_R(:,:,1) = rotateMat(0,0,0);
     
     [area,full_poly] = array_area(FOV_rads, camera_R,camera_t,plane_of_stitching,thresh);
+    [con_area, con_poly] = peelPotato(full_poly');
+    if (area == 0)
+        con_area = 0;
+    end
     %cc, t, Rang, area,overlap_areas
-    naive_output(cc,:) = [cc,area,t,0];
+    naive_output(cc,:) = [cc,area,con_area,t,0];
     naive_drawings{cc} = full_poly;
+    naive_cut{cc} = con_poly';
     cc = cc + 1;
 end
 
@@ -98,6 +103,14 @@ naive_poly = naive_drawings{max_id};
 
 naive_Optimal = naive_sorted_out(end,3:end)
 naive_area = naive_sorted_out(end,2)
+
+naive_sorted_out = sortrows(naive_output,3);
+max_id = naive_sorted_out(end,1);
+naive_con_poly = naive_drawings{max_id};
+naive_con = naive_cut{max_id};
+
+naive_con_Optimal = naive_sorted_out(end,3:end)
+naive_con_area = naive_sorted_out(end,2)
 
 %% Symmetric approach
 
@@ -124,18 +137,33 @@ for t = T_bounds(1):T_bounds(2):T_bounds(3)
         camera_R(:,:,1) = rotateMat(0,0,0);
         
         [area,full_poly] = array_area(FOV_rads, camera_R,camera_t,plane_of_stitching,thresh);
+        [con_area, con_poly] = peelPotato(full_poly');
+        if (area == 0)
+            con_area = 0;
+        end
+        
         %cc, t, Rang, area,overlap_areas
-        symmetric_output(cc,:) = [cc,area,t,Rang*180/pi];
+        symmetric_output(cc,:) = [cc,area,con_area,t,Rang*180/pi];
         symmetric_drawings{cc} = full_poly;
+        symmetric_cut{cc} = con_poly';
         cc = cc + 1;
     end
 end
+
 symmetric_sorted_out = sortrows(symmetric_output,2);
 max_id = symmetric_sorted_out(end,1);
 symmetric_poly = symmetric_drawings{max_id};
 
 symmetric_Optimal = symmetric_sorted_out(end,3:end)
 symmetric_area = symmetric_sorted_out(end,2)
+
+symmetric_sorted_out = sortrows(symmetric_output,3);
+max_id = symmetric_sorted_out(end,1);
+symmetric_con_poly = symmetric_drawings{max_id};
+symmetric_con = symmetric_cut{max_id}';
+
+symmetric_con_Optimal = symmetric_sorted_out(end,3:end)
+symmetric_con_area = symmetric_sorted_out(end,2)
 
 %% Greedy Approach
 
@@ -151,11 +179,15 @@ n = 5;
 covered_poly = [0];
 camera_pose = [];
 
+con_covered_poly = [0];
+con_camera_pose = [];
+
 greedy_fig = figure;
 title('Greedy Camera Placement')
 for i = 1:n
     %[camera_pose(i,:),covered_poly,cameras] = maxCoverage(FOV_rads,plane_of_stitching, coverage_reg, covered_poly,T_bounds,R_bounds,scene_depth,thresh,camera_pose);
     [camera_pose(i,:),covered_poly,cameras] = maxCoverage(FOV_rads,plane_of_stitching, coverage_reg, covered_poly,T_bounds,R_bounds,scene_depth,thresh,camera_pose);
+    [con_camera_pose(i,:),con_covered_poly,con_cameras] = greedyConvex(FOV_rads,plane_of_stitching, [0,0,0;0,0,0], con_covered_poly,T_bounds,R_bounds,scene_depth,thresh,con_camera_pose);
 
     subplot(2,3,i)
     hold on
@@ -170,6 +202,11 @@ print(greedy_fig,'greedy_grid','-dpng')
 greedy_area = polyarea(covered_poly(:,1),covered_poly(:,2))
 greedy_poly = covered_poly;
 
+% Convex results
+greedy_con_area = polyarea(con_covered_poly(:,1),con_covered_poly(:,2));
+greedy_con_poly = con_covered_poly;
+[temp,greedy_con] = peelPotato(con_covered_poly');
+%greedy_con = greedy_con';
 %% Exhaustive Approach
 
 %Evaluate how long exhaustive will take.
@@ -215,9 +252,14 @@ if (yn ~= 'n')
                             camera_R(:,:,5) = rotateMat(R5*cos(Rz(5)),R5*-sin(Rz(5)),Rz(5));
                             
                             [area,full_poly] = array_area(FOV_rads, camera_R,camera_t,plane_of_stitching,thresh);
+                            [con_area,con_poly] = peelPotato(full_poly');
+                            if (area == 0)
+                                con_area = 0;
+                            end
                             %cc, t, Rang, area,overlap_areas
-                            exhaustive_output(cc,:) = [cc,area,t,R1*180/pi,R2*180/pi,R3*180/pi,R4*180/pi,R5*180/pi,Rz];
+                            exhaustive_output(cc,:) = [cc,area,con_area,t,R1*180/pi,R2*180/pi,R3*180/pi,R4*180/pi,R5*180/pi,Rz];
                             exhaustive_drawings{cc} = full_poly;
+                            exhaustive_cut{cc} = con_poly';
                             
                             
                         end
@@ -233,14 +275,24 @@ if (yn ~= 'n')
     
     exhaustive_Optimal = exhaustive_sorted_out(end,3:end)
     exhaustive_area = exhaustive_sorted_out(end,2)
+    
+    exhaustive_sorted_out = sortrows(exhaustive_output,3);
+    max_id = exhaustive_sorted_out(end,1);
+    exhaustive_con_poly = exhaustive_drawings{max_id};
+    exhaustive_con = exhaustive_cut{max_id};
+    
+    exhaustive_con_Optimal = exhaustive_sorted_out(end,3:end)
+    exhaustive_con_area = polyarea(exhaustive_con_poly(:,1),exhaustive_con_poly(:,2))
 end
 
 %% Results
 
 if (yn ~= 'n')
     Areas = [naive_area, symmetric_area, greedy_area, exhaustive_area,thresh_bound]
+    con_Areas = [naive_con_area,symmetric_con_area,greedy_con_area,exhaustive_con_area,thresh_bound]
 else
     Areas = [naive_area, symmetric_area, greedy_area,-1,thresh_bound]
+    con_Areas = [naive_con_area, symmetric_con_area, greedy_con_area,-1,thresh_bound]
 end
 res_fig = figure;
 subplot(2,2,1), fill(naive_poly(:,1),naive_poly(:,2),'r')
@@ -262,3 +314,26 @@ if (yn ~= 'n')
     ylim([-100,100])
 end
 print(res_fig,'comp_result','-dpng')
+
+% Convex Results
+res_fig_con = figure;
+
+subplot(2,2,1), hold on, fill(naive_con_poly(:,1),naive_con_poly(:,2),'b'), fill(naive_con(:,1),naive_con(:,2),'r')
+title('Naive')
+xlim([-100,100])
+ylim([-100,100])
+subplot(2,2,2), hold on, fill(symmetric_con_poly(:,1),symmetric_con_poly(:,2),'b'), fill(symmetric_con(:,1),symmetric_con(:,2),'r')
+title('Symmetric')
+xlim([-100,100])
+ylim([-100,100])
+subplot(2,2,3), hold on, fill(-greedy_con_poly(:,1),greedy_con_poly(:,2),'b'),fill(-greedy_con(:,1),greedy_con(:,2),'r')
+title('Greedy')
+xlim([-100,100])
+ylim([-100,100])
+if (yn ~= 'n')
+    subplot(2,2,4),hold on, fill(exhaustive_con_poly(:,1),exhaustive_con_poly(:,2),'b'), fill(exhaustive_con(:,1),exhaustive_con(:,2),'r')
+    title('Exhaustive')
+    xlim([-100,100])
+    ylim([-100,100])
+end
+print(res_fig_con,'comp_result_con','-dpng')

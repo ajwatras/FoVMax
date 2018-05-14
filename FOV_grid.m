@@ -90,9 +90,14 @@ for tx = T_bounds(1):T_bounds(2):T_bounds(3)
         camera_R(:,:,1) = rotateMat(0,0,0);
         
         [area,full_poly] = array_area(FOV_rads, camera_R,camera_t,plane_of_stitching,thresh);
+        [con_area, con_poly] = peelPotato(full_poly');
+        if (area == 0)
+            con_area = 0;
+        end
         %cc, t, Rang, area,overlap_areas
         naive_output(cc,:) = [cc,area,tx,ty,0];
         naive_drawings{cc} = full_poly;
+        naive_cut{cc} = con_poly';
         cc = cc + 1;
     end
 end
@@ -103,6 +108,14 @@ naive_poly = naive_drawings{max_id};
 
 naive_Optimal = naive_sorted_out(end,3:end)
 naive_area = naive_sorted_out(end,2)
+
+naive_sorted_out = sortrows(naive_output,3);
+max_id = naive_sorted_out(end,1);
+naive_con_poly = naive_drawings{max_id};
+naive_con = naive_cut{max_id};
+
+naive_con_Optimal = naive_sorted_out(end,3:end)
+naive_con_area = naive_sorted_out(end,2)
 
 %% Symmetric approach
 
@@ -130,9 +143,15 @@ for t = T_bounds(1):T_bounds(2):T_bounds(3)
         camera_R(:,:,1) = rotateMat(0,0,0);
         
         [area,full_poly] = array_area(FOV_rads, camera_R,camera_t,plane_of_stitching,thresh);
+              [con_area, con_poly] = peelPotato(full_poly');
+        if (area == 0)
+            con_area = 0;
+        end
+        
         %cc, t, Rang, area,overlap_areas
-        symmetric_output(cc,:) = [cc,area,t,R*180/pi];
+        symmetric_output(cc,:) = [cc,area,con_area,t,R*180/pi];
         symmetric_drawings{cc} = full_poly;
+        symmetric_cut{cc} = con_poly';
         cc = cc + 1;
     end
 end

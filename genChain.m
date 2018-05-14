@@ -1,6 +1,5 @@
 function [flag,chain] = genChain(C1,C2,R,len)
 % Finds the unique balanced chain from chord C1 to C2.
-
 % Tunable Parameters
 DISPLAY_FLAG = 0;
 
@@ -58,6 +57,7 @@ if (len == 1)
         % check if all points enclosed
         tri_reg = [c_out(1),isect(1),c_out(3);c_out(2),isect(2),c_out(4)];
         % If all points enclosed, generate chain and return.
+        
         if all(inpolygon(R(1,:),R(2,:),tri_reg(1,:),tri_reg(2,:)))
             flag = 1;
             chain = [c_out(1),c_out(2);c_out(3),c_out(4)]';

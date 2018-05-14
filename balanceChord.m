@@ -60,6 +60,10 @@ if (pivot_size == 1)
     % Assume pivot = (0,0)
     A = [line1(1), -line1(2);-line2(1), line2(2)];
     b = [-c1;-c2];
+    if det(A) == 0
+        out_vals = [];
+        return;
+    end
     x0 = A\b;
     % d = norm(x0,2)                        % The distance, use for checking balance.
     

@@ -25,3 +25,6 @@ rays = FOVcone(FOV_rads,camera_R,camera_t,1);
 % Format output
 corners = [point1;point2;point3;point4];
 
+% Apply the resolution constraint.
+
+%Apply the focus constraint

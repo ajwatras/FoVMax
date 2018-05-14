@@ -1,217 +1,394 @@
-function  [out_corners, area] = peelPotato(potato)
-% implements the potato peeling algorithm from J.S. Chang's 1986 paper A
-% polynomial solution for the potato peeling problem.
+function [area,out_corners] = peelPotato(in_corners)
+% A function for approximating the maximal convex shape inside the viewing
+% area of our camera array. This solves optimally if the number of reflex
+% corners is 0 or 1. It returns the best result using single length chains
+% if the number of reflex corners is greater than 1.
 
-%Tunable Params
-DISPLAY_CHORDS = 1;
-DISPLAY_CHAINS = 1;
-%% Set Up
-if isempty(potato)
-    %potato = [-1.5,-1,-2,-2,-1,-1.5,1.5,1,2,2,1,1.5;,-2,-1,-1.5,1.5,1,2,2,1,1.5,-1.5,-1,-2];
-     %potato = [0,1,.5,0,-.5,-1;1,0,0,.5,0,0];
-     potato = [0,0;0,2;2,4;3,3;4,4;6,2;5,1;6,0;4,-2;2,-2]'
+reflex = findReflex(in_corners);
 
-end
-% Determine the number of vertices in the potato
-[m,n] = size(potato);
-
-% Determine the set of reflex corners
-reflex = findReflex(potato);
-
-% Determine the total set of extremal chords from the potato.
-for i = 1:n
-    for j = 1:n
-        [Cx,Cy] = polyxpoly(potato(1,:),potato(2,:),potato(1,[i,j]),potato(2,[i,j]));
-        mid = (potato(:,i) + potato(:,j))/2;
-        if (length(Cx) == 2) && inpolygon(mid(1,:),mid(2,:),potato(1,:),potato(2,:))
-            xi(j+n*(i-1),:) = [Cx(1),Cy(1),Cx(2),Cy(2)];
-        end
-    end
+if isempty(reflex)
+    area = polyarea(in_corners(1,:),in_corners(2,:));
+    out_corners = in_corners;
+    return;
 end
 
-if DISPLAY_CHORDS
-    figure(1)
-    hold on
-        fill([potato(1,:),potato(1,1)],[potato(2,:),potato(2,1)],'-p')
-    for i=1:length(xi(:,1))
-        plot(xi(i,[1,3]),xi(i,[2,4]),'k')
-    end
-end
-
-
-%% Step 1
-% Calculate A.
-
-% Set initial size and values of A.
-A = -1*ones([length(xi),length(xi)]);
-
-if DISPLAY_CHAINS
-    figure(2)
-    hold on
-    fill([potato(1,:),potato(1,1)],[potato(2,:),potato(2,1)],'-p')
-end
-% Stage 1 Calculate all length 0 or 1 chains for each pair
-for j = 1:length(xi)
-    for k = 1:length(xi)
-        C = xi(j,:);
-        C2 = xi(k,:);
-        % If C and C2 are valid chords.
-        if any(C) && any(C2)
-            % Generate set of R as corners moving clockwise from C to C2.
-            vj = mod(j,n);
-            if (vj == 0), vj = n; end
-            vk = ceil((k)/n);
-            if vk >= vj
-                R = potato(:,vj:vk);
-            else
-               R = [potato(:,vk:end),potato(:,1:vj)];
-            end
-            % Generate the chain of length 1 for this set of points and chords.
-            [flag,chain] = genChain(C,C2,R,1);
+if(length(reflex)  == 1)
+    [m,n] = size(in_corners);
+    area = -1;
+    out_corners = [];
+    % construct butterflies.
+    for i = 1:n
+        if (i ~= reflex)
+            C = [];                                     % Reset C
+            C2 = [];                                    % Reset C2
             
-            % Store the chain.
-            if flag && all(inpolygon(chain(1,:),chain(2,:),potato(1,:),potato(2,:)))
+            % Calculate butterfly chord 1
+            [C,Cx,Cy] = maxChord(in_corners,[in_corners(:,i)',in_corners(:,reflex)']);
+            
+            if ~isempty(C)
+                % Find adjacent chord.
+                if i == n                                   % Wrap around polygon
+                    if (reflex == 1)                        % Skip reflex point
+                        i2 = 2;
+                    else
+                        i2 = 1;
+                    end
+                elseif (i+1 == reflex)                      % Skip reflex point
+                    if (i == n-1)                           % wrap around polygon
+                        i2 = 1;
+                    else
+                        i2 = i+2;
+                    end
+                else
+                    i2 = i+1;
+                end
                 
-                chains{j,k,1} = chain;
-                if DISPLAY_CHAINS
-                    figure(2)
-                    chain
-                    plot(chain(1,:),chain(2,:),'k')
+                % Calculate butterfly chord 2
+                [C2,Cx,Cy] = maxChord(in_corners,[in_corners(:,i2)',in_corners(:,reflex)']);
+                
+                if ~isempty(C2)
+                    % Compute Supporting lines
+                    if ((i == n) && (i2 == 2)) || ((i2 == 1) && (i == n-1)) || (i2 == i + 2)
+                        line1 = findLine(C(1:2),C2(3:4));
+                        line2 = findLine(C(3:4),C2(1:2));
+                    else
+                        line1 = findLine(C(1:2),C2(1:2));
+                        line2 = findLine(C(3:4),C2(3:4));
+                    end
+                    
+                    % Balance Chord
+                    bal_cut = balanceChord(line1,line2,in_corners(:,reflex));
+                    
+                    % Evaluate each cut
+                    [area1,corners1] = cutPolygon(in_corners,C);
+                    [area2,corners2] = cutPolygon(in_corners,C2);
+                    [area3,corners3] = cutPolygon(in_corners,bal_cut);
+                    
+                    % Update best cut.
+                    if (area1 > area)
+                        area = area1;
+                        out_corners = corners1;
+                    end
+                    if (area2 > area)
+                        area = area2;
+                        out_corners = corners2;
+                    end
+                    if (area3 > area)
+                        area = area3;
+                        out_corners = corners3;
+                    end
                 end
             end
         end
     end
+    %fill(out_corners(1,:),out_corners(2,:),'r');
+    return;
 end
-%Stage 2
 
-% Stage 2:m
-for i = 2:n
-    for j = 1:length(xi)
-        for k = j:length(xi)
-            for l = 1:length(xi)
-                % Try to combine previously calculated chains.
-                if ~(j == l || k == l)
-                    for m = 1:i-1
-                        m2 = i-m-1;
-                        if (m2 > 0)
-                            chain1 = chains{i,l,m};
-                            chain2 = chains{l,k,m2};
-                            
-                            if ~(isempty(chain1) || isempty(chain2))
-                                p1 = findPivots(chain1);
-                                p2 = findPivots(chain2);
-                                % Set p and q as elements of R defining l.
-                                p = xi(l,1:2);
-                                q = xi(l,3:4);
-                                
-                                % Check for possibility A
-                                
-                                %Compute combined pivots
-                                p_total(1:m,:) = p1;
-                                p_total(m+2:m+2+m2,:) = p2;
-                                if (mod(m2,2) == 0 )
-                                    p_total(m,:) = p;
-                                else
-                                    p_total(m,:) = q;
-                                end
-                                
-                                % Extend chain1
-                                chain1(:,m+1) = 2*p_total(m+1) - chain(:,m);
-                                
-                                % Find critical point for the length i chain.
-                                
-                                % Check that the exteded chain1 and chain2 lie
-                                % on the same critical interval.
-                                
-                                % Check for Possibility B
-                            end
+if length(reflex > 1)
+    
+    [m,n] = size(in_corners);
+    area = -1;
+    out_corners = [];
+    temp = in_corners';
+    % construct butterflies.
+    for j = 1:length(reflex)
+        temp_area = -1;
+        for i = 1:n
+            if (i ~= reflex(j))
+                C = [];                                     % Reset C
+                C2 = [];                                    % Reset C2
+                
+                % Calculate butterfly chord 1
+                [C,Cx,Cy] = maxChord(in_corners,[in_corners(:,i)',in_corners(:,reflex(j))']);
+                
+                if ~isempty(C)
+                    % Find adjacent chord.
+                    if i == n                                   % Wrap around polygon
+                        if (reflex(j) == 1)                        % Skip reflex point
+                            i2 = 2;
+                        else
+                            i2 = 1;
+                        end
+                    elseif (i+1 == reflex(j))                      % Skip reflex point
+                        if (i == n-1)                           % wrap around polygon
+                            i2 = 1;
+                        else
+                            i2 = i+2;
+                        end
+                    else
+                        i2 = i+1;
+                    end
+                    
+                    % Calculate butterfly chord 2
+                    [C2,Cx,Cy] = maxChord(in_corners,[in_corners(:,i2)',in_corners(:,reflex(j))']);
+                    
+                    if ~isempty(C2)
+                        % Compute Supporting lines
+                        if ((i == n) && (i2 == 2)) || ((i2 == 1) && (i == n-1)) || (i2 == i + 2)
+                            line1 = findLine(C(1:2),C2(3:4));
+                            line2 = findLine(C(3:4),C2(1:2));
+                        else
+                            line1 = findLine(C(1:2),C2(1:2));
+                            line2 = findLine(C(3:4),C2(3:4));
+                        end
+                        
+                        % Balance Chord
+                        bal_cut = balanceChord(line1,line2,in_corners(:,reflex(j)));
+                        
+                        % Evaluate each cut
+                        [area1,corners1] = cutPolygon(in_corners,C);
+                        [area2,corners2] = cutPolygon(in_corners,C2);
+                        [area3,corners3] = cutPolygon(in_corners,bal_cut);
+                        
+                        % Update best cut.
+                        if (area1 > temp_area)
+                            temp_area = area1;
+                            out_corners = corners1;
+                            cut = C;
+                        end
+                        if (area2 > temp_area)
+                            temp_area = area2;
+                            out_corners = corners2;
+                            cut = C2;
+                        end
+                        if (area3 > temp_area)
+                            temp_area = area3;
+                            out_corners = corners3;
+                            cut = bal_cut;
                         end
                     end
                 end
             end
         end
         
+        % Update our estimate for best polygon now that one reflex
+        % corner has been cut.
+        [a,b,temp] = combinePoly(temp,out_corners','int');
     end
-end
-
-%First iterate over all C and C' in xi.
-for j = 1:length(xi)
-    for k = 1:length(xi)
-        C = xi(j,:);
-        C2 = xi(k,:);
-        
-        % Generate matrix A(C,C') which is the area of the uniquely balanced (C,C')
-        % chain for all C and C' in xi.
-        
-        % Generate chain
-        chain = genChain(C,C2,R,2);
-        
-        % Check for admissability
-        if chainAdmissable(chain)
-            % Calculate area
-        else
-            %Do not set area.
-        end
-        
-        % Generate matrix A(C,C') which is the area of the uniquely balanced (C,C')
-        % chain for all C and C' in xi.
-        
-    end
-end
-
-
-%% Step 2
-% Calculate M.
-
-% Set initial values of M
-M = -1*ones(length(xi),length(xi));
-
-% For C in xi_i, C' in xi_j, C'' in xi_k, we find
-% max(A(C,C'), max_C''(M(C,C'')+M(C'',C)+Area(triangle(c,c'',c'))
-for i = 1:n
-    for j = i+1:n
-        for k = j+1:n
-            %identify xi_a ranges
-            
-            for i2 = 1:n
-                for j2 = 1:n
-                    for k2 = 1:n
-                        %identify chord indexes
-                        id0 = n*i+i2; % C
-                        id1 = n*j+j2; % C'
-                        id2 = n*k+k2; % C''
-                        
-                        %Choose chords for C, C', C''
-                        C = xi(n*i+i2,:);
-                        C1 = xi(n*j+j2,:);
-                        C3 = xi(n*k+k2,:);
-                        
-                        % Set up values for M(C,C')
-                        tmpM = -1;  % tmpM = max_C''(M(C,C'')+M(C'',C)+Area(triangle(c,c'',c'))
-                        
-                        M(id0,id1) = max(A(id0,id(1)),tmpM);    % max(A(C,C'), max_C''(M(C,C'')+M(C'',C)+Area(triangle(c,c'',c'))
-                        
-                    end
-                end
+    
+    if isempty(findReflex(temp'))
+        out_corners = temp';
+        area = polyarea(out_corners(1,:),out_corners(2,:));
+    else
+        if length(reflex) > 2
+            K = convhull(in_corners(:,reflex)');
+            out_corners = in_corners(:,reflex)';
+            out_corners = out_corners(K,:);
+            [a,b,out_corners] = combinePoly(out_corners,in_corners','int');
+            if ~isempty(out_corners) && isempty(findReflex(out_corners'))
+                area = polyarea(out_corners(:,1),out_corners(:,2));
+            else
+                out_corners = [];
+                area = -1;
             end
+        else
+            out_corners = [];
+            area = -1;
         end
     end
+    
+    %fill(out_corners(1,:),out_corners(2,:),'r');
+    return;
+end
 end
 
 
-%% Step 3
-% Calculate the resulting area.
+%% Functions used by script.
+function line = findLine(x1,x2)
+m1 = (x2(2) - x1(2));
+m2 = (x2(1) - x1(1));
+b = m2*x1(2) - m1*x1(1);
+line = [m1,m2,b];
 
-% Find the best chain.
-[max_val,j] = max(M+M');
-[max_val,i] = max(max_val);
-j = j(i);
+end
+
+function [out_chord,Cx,Cy] = maxChord(poly,chord)
+% Extends chord so that it is maximal. Note, this function may need to be
+% improved to handle the case where there are multiple reflex points. In
+% this case, we instead need to ensure that the portion between the stated
+% chords lies in the polygon and then extend it to the entire connected
+% region that lies in the polygon.
+
+line = findLine(chord(1:2),chord(3:4));                 % Find the line on which the chord lies.
+% Extend line so that the ends lie outside the polygon.
+if abs(line(1)) < abs(line(2))
+    xmax = max(poly(1,:));
+    xmin = min(poly(1,:));
+    
+    out_chord(1) = xmin - 1;
+    out_chord(2) = (line(1)*out_chord(1) + line(3))/line(2);
+    out_chord(3) = xmax + 1;
+    out_chord(4) = (line(1)*out_chord(3) + line(3))/line(2);
+    
+else
+    ymax = max(poly(2,:));
+    ymin = min(poly(2,:));
+    
+    out_chord(2) = ymin - 1;
+    out_chord(1) = (line(2)*out_chord(2) - line(3))/line(1);
+    out_chord(4) = ymax + 1;
+    out_chord(3) = (line(2)*out_chord(4) - line(3))/line(1);
+    
+end
+% Intersect extended chord with the polygon.
+[Cx,Cy] = polyxpoly(poly(1,:),poly(2,:),[out_chord(1),out_chord(3)],[out_chord(2),out_chord(4)],'unique');
+
+% Check to see that maximal chord is contained in poly.
+flag = zeros(length(Cx) - 1,1);
+for i = 1:length(Cx)-1
+    mid = ([Cx(i),Cy(i)] + [Cx(i+1),Cy(i+1)])/2;
+    flag(i) = inpolygon(mid(1),mid(2),poly(1,:),poly(2,:));
+end
+% Set maximal chord as output.
+if all(flag) && ~isempty(flag)
+    out_chord(1) = Cx(1);
+    out_chord(2) = Cy(1);
+    out_chord(3) = Cx(end);
+    out_chord(4) = Cy(end);
+else
+    out_chord = [];
+end
+
+end
+
+function [area,corners] = cutPolygon(poly,chord)
+% Bisects a polygon via a chord and returns the region of the bisected
+% polygon with the largest area. Uses cutpolygon.m script by Dominik Brands
+% and Jasper Menger to perform the cutting.
+
+% Placeholders. If function does not succeed, return these.
+area = -1;
+corners = [];
+
+if any(isnan(chord)) || isempty(chord) || any(isinf(chord))
+    return;
+end
+if all(chord(1:2) == chord(3:4))
+    return;
+end
+
+if chord(1) ~= chord(3)
+    poly1 = cutpolygon(poly',[chord(1:2);chord(3:4)],1)';
+    poly2 = cutpolygon(poly',[chord(1:2);chord(3:4)],2)';
+else
+    poly1 = cutpolygon(poly',[chord(1:2);chord(3:4)],3)';
+    poly2 = cutpolygon(poly',[chord(1:2);chord(3:4)],4)';
+end
+
+area1 = polyarea(poly1(1,:),poly1(2,:));
+area2 = polyarea(poly2(1,:),poly2(2,:));
+
+if area1 > area2
+    area = area1;
+    corners = poly1;
+else
+    area = area2;
+    corners = poly2;
+end
 
 
-% Using the chord indexes i and j, find the polygon associated with the
-% balanced chains (C1,C2),(C2,C1).
 
-%% results
-area = max_val;
-out_corners = xi;
+end
+
+function out_vals = balanceChord(line1,line2,pivot)
+% Finds the chord through pivot such that the end points lie on line1 and
+% line2 and the chord is balanced.
+% line1 = [m1, c1]
+% line2 = [m2, c2]
+% pivot = [px,py;qx,qy]'
+% out_vals has format [x_0,y_0,x_1,y_1]
+% Could change output format to [m,c0]
+out_vals = [];
+[n,pivot_size] = size(pivot);
+
+% need to develop for double pivot chord
+if (pivot_size == 2)
+    if ~all(pivot(:,1) == pivot(:,2))
+        
+        % Determine chord passing through pivots
+        m1 = (pivot(2,1) - pivot(2,2));
+        m2 = (pivot(1,1) - pivot(1,2));
+        b = m2*pivot(2,2) - m1*pivot(1,2);
+        line = [m1,m2,b];
+        
+        % Calculate intercepts with each line.
+        x0 = [line(1), -line(2);line1(1), -line1(2)]\[-line(3);-line1(3)];
+        x1 = [line(1), -line(2);line2(1), -line2(2)]\[-line(3);-line2(3)];
+        
+        
+        % Calculate line midpoint and determine which line is nearest each
+        % pivot
+        ref = (x0 + x1)/2;
+        if norm(pivot(:,1) - x0,2) < norm(pivot(:,2) - x0,2)
+            p = pivot(:,1);
+            q = pivot(:,2);
+        else
+            q = pivot(:,1);
+            p = pivot(:,2);
+        end
+        
+        %Check if ref is in between the pivots
+        if (norm(ref - x0,2) >= norm(p - x0,2)) && (norm(ref - x1,2) >= norm(p - x0,2))
+            % Check for bracketing property
+            if norm( 2*p - x0 - x1,2) <= norm(2*(q - x1))
+                out_vals = [x0;x1]';
+                return;
+            end
+            
+            
+        end
+    else
+        pivot = pivot(:,1);
+    end
+    
+end
+
+% works if we have a single pivot chord and our lines are not parallel.
+if (pivot_size == 1)
+    % Adjust coordinate system so pivot is (0,0)
+    c1 = line1(3) - line1(2)*pivot(2) + line1(1)*pivot(1);
+    c2 = line2(3) - line2(2)*pivot(2) + line2(1)*pivot(1);
+    
+    % Assume pivot = (0,0)
+    A = [line1(1), -line1(2);-line2(1), line2(2)];
+    b = [-c1;-c2];
+    if det(A) == 0
+        out_vals = [];
+        return;
+    end
+    if abs(det(A)) < 0.00001
+        out_vals = [];
+        return
+    else
+        
+        x0 = A\b;
+        % d = norm(x0,2)                        % The distance, use for checking balance.
+        
+        out_vals = [x0 + pivot; pivot - x0]';
+    end
+end
+
+end
+
+function reflex = findReflex(poly)
+% Finds the reflex corners of the polygon poly
+[m,n] = size(poly);
+
+for i = 2:n-1
+    v1 = poly(:,i) - poly(:,i-1);
+    v2 = poly(:,i+1) - poly(:,i);
+    angle(i) = det([v1,v2]);
+end
+v1 = poly(:,n) - poly(:,n-1);
+v2 = poly(:,1) - poly(:,n);
+angle(n) = det([v1,v2]);
+
+v1 = poly(:,1) - poly(:,n);
+v2 = poly(:,2) - poly(:,1);
+angle(1) = det([v1,v2]);
+
+sang = sign(angle) < 0;
+reflex = find(sang);
+end
 

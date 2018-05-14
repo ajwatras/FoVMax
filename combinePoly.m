@@ -13,6 +13,13 @@ function [success,area, poly] = combinePoly(p1,p2,method)
 % 	p2 - the vertices of polygon 2
 %	method - The method used by polyclip 'uni' for union. 'int' for intersection. 
 
+if isempty(p1) || isempty(p2)
+    poly = p1;
+    success = 0;
+    area = -1;
+    return;
+end
+
 [a,b] = polyclip(p1(:,1),p1(:,2),p2(:,1),p2(:,2),method);
 
 if length(a) == 1
